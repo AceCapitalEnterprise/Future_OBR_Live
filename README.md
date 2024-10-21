@@ -85,23 +85,30 @@ Here’s the updated document with the added adjustments and changes paragraph:
 - Upon detecting a volume spike, the system checks the next candle. If the next candle breaks the high of the volume spike candle, a Call Buy is executed; if it breaks the low, a Put Buy is executed.
 
 ### Exit Strategy
-- **Target:** A 30-point target is set upon entering a trade.
+- (Removed this condition now)**Target:** A 30-point target is set upon entering a trade. 
 - **Stop-Loss:** A 15-point stop-loss is also set at the time of the trade.
 - **Trailing Stop-Loss:** 
   - **Previous Logic:** The stop-loss was initially moved to the entry cost after gaining 15 points. For every additional 5 points of gain, the stop-loss would trail by 5 points.
-  - **Updated Logic:** Now, the trailing stop-loss is adjusted only when a 2.5x volume spike is detected, with the stop-loss trailing directly by 5 points. The stop-loss does not move to the entry cost first.
-- **Auto Square-Off:** If a position is not exited after 20 candles, the system will automatically square off the position.
+  - **Updated Logic:** Now, the trailing stop-loss is adjusted only when a 2.5x volume spike is detected, with the stop-loss trailing directly by point to point. The stop-loss does not move to the entry cost first.
+- (Removed this condition now)**Auto Square-Off:** If a position is not exited after 20 candles, the system will automatically square off the position.
 
-### Adjustments and Changes
+### Adjustments and Changes in Exit
 1. **Trailing Stop-Loss Adjustment:**
-   - The trailing stop-loss is now only adjusted when a 2.5x volume spike is detected. The stop-loss will trail directly by 5 points, bypassing the previous logic of moving to the entry cost first.
+   - The trailing stop-loss is now only adjusted when a 2.5x volume spike is detected. The stop-loss will trail directly point to point..
 
-2. **Auto Square-Off after 20 Candles:**
-   - After executing a Buy or Sell position, if the position has not been exited after 20 candles, the system will automatically square off the position.
-
-3. **Change in Terminology from Futures to Options:**
+2. **Change in Terminology from Futures to Options:**
    - "Future Buy" has been replaced with "Call Buy."
    - "Future Sell" has been replaced with "Put Buy."
+   - 
+### Adjustments and Changes in Exit     
+3. **Check Option Volume also:**
+   - Option Volume checking at same time when future volume come. if option volume candle high break then we go for buying.
+
+4. **Avg Volume of Option to Future:**
+   - avg volume of put/call to Future is greater than equal to 0.5
+
+4. **Vega Check:**
+   - calculate previous 10 candle Vega values and if volume candle vega breaks previous 10 candle vega highs then we go for Buying.     
 
 ## Logging Trades
 
