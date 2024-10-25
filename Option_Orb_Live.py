@@ -1,10 +1,9 @@
-# -*- coding: utf-8 -*-
+
 """
 Created on Mon Aug 26 12:15:31 2024
 
 @author: Vinay Kumar
 """
-
 import pandas as pd
 import time
 from datetime import datetime, timedelta, time as t
@@ -12,9 +11,10 @@ import csv
 from breeze_connect import BreezeConnect
 import logging
 
-# Initialize ICICI Breeze API
-breeze = BreezeConnect(api_key="S43813906421*qTB5O98pn4i5r386290")  # Replace with your API key
-breeze.generate_session(api_secret="2pc136H426=9j7o+32(67179+C19Ba99", session_token="46962556")  
+breeze = BreezeConnect(api_key="77%U3I71634^099gN232777%316Q~v4=")
+breeze.generate_session(api_secret="9331K77(I8_52JG2K73$5438q95772j@",
+                        session_token="48564793")
+ 
 
 # Define trading parameters
 Call_Buy = None
@@ -22,27 +22,33 @@ Put_Buy = None
 factor = None
 volume_high = None
 volume_low = None
+vol = None
+avg_volume = None
+vol_call = None
+vol_put = None
+avg_volume_call = None
+avg_volume_put = None
 move_sl_to_cost = False
 orb = False
-time_1 = t(3, 47)  # 9:17 AM IST -> 3:47 AM UTC
-time_2 = t(9, 45)  # 3:01 PM IST -> 9:31 AM UTC
+time_1 = t(9, 15)
+time_2 = t(15, 15)
 target = 30
 stoploss = 15
 order = 0
-quantity="50"
+quantity="250"
 today = datetime.now().strftime("%Y-%m-%d")
-fut_expiry  = "2024-09-26"
-option_expiry_date = "2024-09-12"
+fut_expiry  = "2024-10-31"
+option_expiry_date = "2024-10-31"
 expiry_date = f"{fut_expiry}T07:00:00.000Z"
 option_expiry = f"{option_expiry_date}T07:00:00.000Z"
+
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, filename='trading_debug.log', filemode='w',
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
-log_file = "Future_ORB.csv"
-headers = ['Date', 'Time', 'Entry Price', 'BUY/SELL', 'Exit Price', 'Exit Time', 'Exit Reason', 'PNL']
-
+log_file = "Future_ORB_live_vol.csv"
+headers = ['Date', 'Time', 'Entry Price', 'BUY/SELL', 'Exit Price','Vol Mul', 'Option Volume Mul', 'Exit Time','Strike Price', 'Exit Reason', 'PNL']
 
 # Create file and write headers if file doesn't exist
 try:
@@ -53,26 +59,23 @@ except FileExistsError:
     pass
    
 # Function to log trade information to CSV
-def log_trade_to_csv(today, entry_time, entry_price, direction, exit_price, exit_time, exit_reason, pnl):
+def log_trade_to_csv(today, entry_time, entry_price, direction, exit_price, vol, option_vol_avg, exit_time, strike_price, exit_reason, pnl):
     with open(log_file, "a", newline="") as file:
         writer = csv.writer(file)
-        writer.writerow([today, entry_time, entry_price, direction, exit_price, exit_time, exit_reason, pnl])
+        writer.writerow([today, entry_time, entry_price, direction, exit_price,vol, option_vol_avg, exit_time, strike_price, exit_reason, pnl])
 
 def get_volume_factor(volume, avg_volume):
     """Determine the volume factor based on the current volume and average volume."""
     if volume > (avg_volume * 2.5):
-        return 2
+     
+        return 1
     return None
 
 def adjust_trailing_sl(current_price, sl, factor, order):
     """Adjust the trailing stop-loss based on the current price and factor."""
-    if order == 1:  # Long position
-        new_sl = sl + factor
-        return new_sl
-    elif order == -1:  # Short position
-        new_sl = sl + factor
-        return new_sl
-    return sl
+    if order in [1, -1]:
+        new_sl = current_price - 15 
+        return max(new_sl, sl)
 
 def round_to_nearest_50(n):
     return round(n / 50) * 50
@@ -160,7 +163,7 @@ def get_future_quotes_with_retry(stock_code, exchange_code, product_type, expiry
 def get_order_detail_with_retry(exchange_code, order_id):
     return retry_api_call(
         lambda: breeze.get_order_detail(exchange_code=exchange_code, order_id=order_id))    
-    
+
 # Check for past ORB breakout
 orb_breakout_occurred = False
 if order == 0:
@@ -336,36 +339,36 @@ while True:
                                                         right="call", strike_price=strike_price)
             ltp = pd.DataFrame(ltp['Success'])
             premium = ltp['ltp'][0] 
-            if premium >= tgt:
-                call_sell(expiry_date,quantity)
-                exit_reason = 'Target Hit'
-            elif premium <= sl:
+            #if premium >= tgt:
+            #    call_sell(expiry_date,quantity)
+            #    exit_reason = 'Target Hit'
+            if premium <= sl:
                 call_sell(expiry_date,quantity)
                 exit_reason = 'Stoploss Hit'
-            elif time_difference > 30:
-                call_sell(expiry_date,quantity)
-                exit_reason = '30 candle hit'
-            elif t(now.hour, now.minute) == t(9, 50):
+            elif t(now.hour, now.minute) == t(15, 20):
                 call_sell(expiry_date,quantity)
                 exit_reason = 'Market Close'
+            #elif time_difference > 30:
+            #    call_sell(expiry_date,quantity)
+            #    exit_reason = '30 candle hit'
         elif order == -1:
             ltp = get_option_chain_quotes_with_retry(stock_code="NIFTY", exchange_code="NFO",
                                                         product_type="options", expiry_date=option_expiry,
                                                         right="put", strike_price=strike_price)
             ltp = pd.DataFrame(ltp['Success'])
             premium = ltp['ltp'][0] 
-            if premium >= tgt:
-                put_sell(expiry_date,quantity)
-                exit_reason = 'Target Hit'
-            elif premium <= sl:
+            #if premium >= tgt:
+            #    put_sell(expiry_date,quantity)
+            #    exit_reason = 'Target Hit'
+            if premium <= sl:
                 put_sell(expiry_date,quantity)
                 exit_reason = 'Stoploss Hit'
-            elif time_difference > 30:
-                put_sell(expiry_date,quantity)
-                exit_reason = '30 candle hit'
-            elif t(now.hour, now.minute) == t(9, 50):
+            elif t(now.hour, now.minute) == t(15, 20):
                 put_sell(expiry_date,quantity)
                 exit_reason = 'Market Close'
+            #elif time_difference > 30:
+            #    put_sell(expiry_date,quantity)
+            #    exit_reason = '30 candle hit'
         
         if exit_reason:
             print(f"{exit_reason}. Exiting position.")
@@ -376,9 +379,11 @@ while True:
             
             # Calculate PNL
             pnl = (premium - Call_Buy) if order == 1 else (premium - Put_Buy)
-            
+            avg = vol / avg_volume
+            avg_call = vol_call / avg_volume_call
+            avg_put = vol_put / avg_volume_put
             # Log trade details to CSV
-            log_trade_to_csv(today, entry_time, Call_Buy if order == 1 else Put_Buy, right, premium, exit_time, exit_reason, pnl)
+            log_trade_to_csv(today, entry_time, Call_Buy if order == 1 else Put_Buy, right, premium, avg ,avg_call if order == 1 else avg_put ,exit_time, strike_price, exit_reason, pnl)
             
             order = 2
             orb = False
@@ -403,11 +408,49 @@ while True:
                                                   product_type="futures",
                                                   expiry_date=expiry_date,
                                                   right="others")
-
-        olhc = pd.DataFrame(vol_hist['Success'])
-        avg_volume = olhc['volume'].ewm(span=10, min_periods=10).mean().iloc[-2]  # Use second last row for previous candle's EMA
+        
+        ltp = get_quotes_with_retry(stock_code="NIFTY", exchange_code="NSE",
+                                    product_type="cash", right="others", strike_price="0")
+       
+        olhc =  pd.DataFrame(vol_hist['Success'])
         last_row = olhc.iloc[-2]  # Last completed candle
+        vol = last_row['volume']
+        avg_volume = olhc['volume'].ewm(span=10, min_periods=10).mean().iloc[-2]  # Use second last row for previous candle's EMA
+    
         factor = get_volume_factor(last_row['volume'], avg_volume)
+        if factor:
+            ltp = pd.DataFrame(ltp['Success'])
+            strike_price= round_to_nearest_50(ltp['ltp'][0])
+            
+            ltp_call = breeze.get_historical_data_v2(interval="1minute", 
+                                                     from_date= f"{today}T07:00:00.000Z",
+                                                     to_date= f"{today}T15:00:00.000Z",
+                                                     stock_code="NIFTY",
+                                                     exchange_code="NFO",
+                                                     product_type="options",
+                                                     expiry_date=option_expiry,
+                                                     right="call",
+                                                     strike_price=strike_price)
+                
+            ltp_put = breeze.get_historical_data_v2(interval="1minute",
+                                                    from_date= f"{today}T07:00:00.000Z",
+                                                    to_date= f"{today}T15:00:00.000Z",
+                                                    stock_code="NIFTY",
+                                                    exchange_code="NFO",
+                                                    product_type="options",
+                                                    expiry_date=option_expiry,
+                                                    right="put",
+                                                    strike_price=strike_price)
+            olhc_call = pd.DataFrame(ltp_call['Success'])
+            olhc_put = pd.DataFrame(ltp_put['Success'])
+            
+            avg_volume_call = olhc_call['volume'].ewm(span=10, min_periods=10).mean().iloc[-2]
+            avg_volume_put = olhc_put['volume'].ewm(span=10, min_periods=10).mean().iloc[-2]
+            call_vol_candle = olhc_call.iloc[-2]
+            put_vol_candle = olhc_put.iloc[-2]
+            vol_call = olhc_call.iloc[-2]['volume'] 
+            vol_put = olhc_put.iloc[-2]['volume']
+                
         print(f"Volume-Based Re-entry with factor {factor}{now}. Last close: {last_row['close']}, last volume: {last_row['volume']}, avg volume: {avg_volume}")
         if factor:
             update_volume_conditions(factor, last_row)
@@ -428,15 +471,32 @@ while True:
                                                       right="others")
                 olhc = pd.DataFrame(olhc['Success'])
                 latest_candle = olhc.iloc[-1]
-
-                # Check if breakout conditions are met
-                if latest_candle['close'] > volume_high:
+                
+                ltp_call = breeze.get_historical_data_v2(interval="1minute", 
+                                                         from_date= f"{today}T07:00:00.000Z",
+                                                         to_date= f"{today}T15:00:00.000Z",
+                                                         stock_code="NIFTY",
+                                                         exchange_code="NFO",
+                                                         product_type="options",
+                                                         expiry_date=option_expiry,
+                                                         right="call",
+                                                         strike_price=strike_price)
                     
-                    ltp = get_quotes_with_retry(stock_code="NIFTY", exchange_code="NSE",
-                                                product_type="cash", right="others", strike_price="0")
-
-                    ltp = pd.DataFrame(ltp['Success'])
-                    strike_price= round_to_nearest_50(ltp['ltp'][0])
+                ltp_put = breeze.get_historical_data_v2(interval="1minute",
+                                                        from_date= f"{today}T07:00:00.000Z",
+                                                        to_date= f"{today}T15:00:00.000Z",
+                                                        stock_code="NIFTY",
+                                                        exchange_code="NFO",
+                                                        product_type="options",
+                                                        expiry_date=option_expiry,
+                                                        right="put",
+                                                        strike_price=strike_price)
+                olhc_call = pd.DataFrame(ltp_call['Success'])
+                olhc_put = pd.DataFrame(ltp_put['Success'])
+                
+                # Check if breakout conditions are met
+                if latest_candle['close'] > volume_high and olhc_call.iloc[-1]['close'] > call_vol_candle['high']:
+                    
                     # Call Buy condition met
                     detail = breeze.place_order(stock_code="NIFTY",
                                                 exchange_code="NFO",
@@ -469,11 +529,7 @@ while True:
                     logging.info(f"{now} Volume-Based Call Buy at: {Call_Buy}, strike_price: {strike_price}, Target: {tgt}, Stoploss: {sl}")
                     break
 
-                elif latest_candle['close'] < volume_low:
-                    ltp = get_quotes_with_retry(stock_code="NIFTY", exchange_code="NSE",
-                                                product_type="cash", right="others", strike_price="0")
-                    ltp = pd.DataFrame(ltp['Success'])
-                    strike_price= round_to_nearest_50(ltp['ltp'][0])
+                elif latest_candle['close'] < volume_low and olhc_put.iloc[-1]['close'] > put_vol_candle['high']:
                     
                     # Put Buy condition met
                     detail = breeze.place_order(stock_code="NIFTY",
@@ -522,7 +578,7 @@ while True:
                                                         right="call", strike_price=strike_price)
             ltp = pd.DataFrame(ltp['Success'])
             premium = ltp['ltp'][0]
-            if premium >= sl + factor + 15:
+            if premium >= sl + 15:
                 sl = adjust_trailing_sl(premium, sl, factor, order)
                 print(f"Stop Loss trailed. Premium: {premium}, New SL: {sl}")
                 logging.info(f"Stop Loss trailed. Premium: {premium}, New SL: {sl}")
@@ -533,7 +589,7 @@ while True:
                                                         right="put", strike_price=strike_price)
             ltp = pd.DataFrame(ltp['Success'])
             premium = ltp['ltp'][0] 
-            if premium >= sl + factor + 15:
+            if premium >= sl + 15:
                 sl = adjust_trailing_sl(premium, sl, factor, order)
                 print(f"Stop Loss trailed. Premium: {premium}, New SL: {sl}")
                 logging.info(f"Stop Loss trailed. Premium: {premium}, New SL: {sl}")
